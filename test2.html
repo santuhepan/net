@@ -1,0 +1,2669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+
+<style>
+    #score-board {
+        width: 400px;
+        height: 50px;
+        background-color: #eee4da;
+        border-radius: 6px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+        margin: 0px auto;
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0px 20px;
+        font-size: 24px;
+        font-weight: bold;
+    }
+
+    #score-board div:first-child {
+        margin-right: 20px;
+    }
+
+    #restart-button {
+        background-color: #8f7a66;
+        color: #fff;
+        border-radius: 4px;
+        border: none;
+        padding: 10px 20px;
+        font-size: 18px;
+        cursor: pointer;
+    }
+
+    #game-board {
+        width: 400px;
+        height: 400px;
+        background-color: #bbada0;
+        border-radius: 6px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+        margin: 20px auto;
+        position: relative;
+    }
+</style>
+
+<body>
+<div id="game-board"></div>
+<div id="score-board">
+    <div>分数：</div>
+    <div id="score">0</div>
+    <button id="restart-button">重新开始</button>
+</div>
+
+</body>
+<script>
+    var size = 4; // 棋盘大小
+    var board = new Array(size); // 棋盘数组
+    var score = 0; // 得分
+
+    // 初始化棋盘
+    function init() {
+        for (var i = 0; i < size; i++) {
+            board[i] = new Array(size);
+            for (var j = 0; j < size; j++) {
+                board[i][j] = 0;
+            }
+        }
+        addRandomNum();
+        addRandomNum();
+    }
+
+    // 在随机位置生成一个数字
+    function addRandomNum() {
+        var row = parseInt(Math.floor(Math.random() * size));
+        var col = parseInt(Math.floor(Math.random() * size));
+        while (true) {
+            if (board[row][col] == 0) {
+                board[row][col] = Math.random() < 0.5 ? 2 : 4;
+                break;
+            }
+            row = parseInt(Math.floor(Math.random() * size));
+            col = parseInt(Math.floor(Math.random() * size));
+        }
+    }
+
+    // 更新棋盘显示
+    function updateBoardView() {
+        for (var i = 0; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                var cell = document.getElementById("cell_" + i + "_" + j);
+                cell.innerHTML = board[i][j] == 0 ? "" : board[i][j];
+                cell.style.backgroundColor = getBgColor(board[i][j]);
+                cell.style.color = getColor(board[i][j]);
+            }
+        }
+        document.getElementById("score").innerHTML = score;
+    }
+
+    // 根据数字获取背景颜色
+    function getBgColor(num) {
+        switch (num) {
+            case 2:
+                return "#eee4da";
+                break;
+            case 4:
+                return "#ede0c8";
+                break;
+            case 8:
+                return "#f2b179";
+                break;
+            case 16:
+                return "#f59563";
+                break;
+            case 32:
+                return "#f67c5f";
+                break;
+            case 64:
+                return "#f65e3b";
+                break;
+            case 128:
+                return "#edcf72";
+                break;
+            case 256:
+                return "#edcc61";
+                break;
+            case 512:
+                return "#9c0";
+                break;
+            case 1024:
+                return "#33b5e5";
+                break;
+            case 2048:
+                return "#09c";
+                break;
+            default:
+                return "#ccc0b3";
+                break;
+        }
+    }
+
+    // 根据数字获取前景颜色
+    function getColor(num) {
+        if (num <= 4) {
+            return "#776e65";
+        } else {
+            return "#fff";
+        }
+    }
+
+    // 判断是否还有空位置
+    function hasSpace() {
+        for (var i = 0; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                if (board[i][j] == 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // 判断是否可以向左移动
+    function canMoveLeft() {
+        for (var i = 0; i < size; i++) {
+            for (var j = 1; j < size; j++) {
+                if (board[i][j] != 0) {
+                    if (board[i][j - 1] == 0 || board[i][j - 1] == board[i][j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 向左移动
+    function moveLeft() {
+        if (!canMoveLeft()) {
+            return false;
+        }
+        for (var i = 0; i < size; i++) {
+            for (var j = 1; j < size; j++) {
+                if (board[i][j] != 0) {
+                    for (var k = 0; k < j; k++) {
+                        if (board[i][k] == 0 && noBlockHorizontal(i, k, j, board)) {
+                            // 移动
+                            showMoveAnimation(i, j, i, k);
+                            board[i][k] = board[i][j];
+                            board[i][j] = 0;
+                            break;
+                        } else if (board[i][k] == board[i][j] && noBlockHorizontal(i, k, j, board)) {
+                            // 合并
+                            showMoveAnimation(i, j, i, k);
+                            board[i][k] += board[i][j];
+                            board[i][j] = 0;
+                            score += board[i][k];
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        setTimeout("updateBoardView()", 200);
+        return true;
+    }
+
+    // 判断是否可以向右移动
+    function canMoveRight() {
+        for (var i = 0; i < size; i++) {
+            for (var j = 0; j < size - 1; j++) {
+                if (board[i][j] != 0) {
+                    if (board[i][j + 1] == 0 || board[i][j + 1] == board[i][j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 向右移动
+    function moveRight() {
+        if (!canMoveRight()) {
+            return false;
+        }
+        for (var i = 0; i < size; i++) {
+            for (var j = size - 2; j >= 0; j--) {
+                if (board[i][j] != 0) {
+                    for (var k = size - 1; k > j; k--) {
+                        if (board[i][k] == 0 && noBlockHorizontal(i, j, k, board)) {
+                            // 移动
+                            showMoveAnimation(i, j, i, k);
+                            board[i][k] = board[i][j];
+                            board[i][j] = 0;
+                            break;
+                        } else if (board[i][k] == board[i][j] && noBlockHorizontal(i, j, k, board)) {
+                            // 合并
+                            showMoveAnimation(i, j, i, k);
+                            board[i][k] += board[i][j];
+                            board[i][j] = 0;
+                            score += board[i][k];
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        setTimeout("updateBoardView()", 200);
+        return true;
+    }
+
+    // 判断是否可以向上移动
+    function canMoveUp() {
+        for (var i = 1; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                if (board[i][j] != 0) {
+                    if (board[i - 1][j] == 0 || board[i - 1][j] == board[i][j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 向上移动
+    function moveUp() {
+        if (!canMoveUp()) {
+            return false;
+        }
+        for (var i = 1; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                if (board[i][j] != 0) {
+                    for (var k = 0; k < i; k++) {
+                        if (board[k][j] == 0 && noBlockVertical(j, k, i, board)) {
+                            // 移动
+                            showMoveAnimation(i, j, k, j);
+                            board[k][j] = board[i][j];
+                            board[i][j] = 0;
+                            break;
+                        } else if (board[k][j] == board[i][j] && noBlockVertical(j, k, i, board)) {
+                            // 合并
+                            showMoveAnimation(i, j, k, j);
+                            board[k][j] += board[i][j];
+                            board[i][j] = 0;
+                            score += board[k][j];
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        setTimeout("updateBoardView()", 200);
+        return true;
+    }
+
+    // 判断是否可以向下移动
+    function canMoveDown() {
+        for (var i = 0; i < size - 1; i++) {
+            for (var j = 0; j < size; j++) {
+                if (board[i][j] != 0) {
+                    if (board[i + 1][j] == 0 || board[i + 1][j] == board[i][j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 向下移动
+    function moveDown() {
+        if (!canMoveDown()) {
+            return false;
+        }
+        for (var i = size - 2; i >= 0; i--) {
+            for (var j = 0; j < size; j++) {
+                if (board[i][j] != 0) {
+                    for (var k = size - 1; k > i; k--) {
+                        if (board[k][j] == 0 && noBlockVertical(j, i, k, board)) {
+                            // 移动
+                            showMoveAnimation(i, j, k, j);
+                            board[k][j] = board[i][j];
+                            board[i][j] = 0;
+                            break;
+                        } else if (board[k][j] == board[i][j] && noBlockVertical(j, i, k, board)) {
+                            // 合并
+                            showMoveAnimation(i, j, k, j);
+                            board[k][j] += board[i][j];
+                            board[i][j] = 0;
+                            score += board[k][j];
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        setTimeout("updateBoardView()", 200);
+        return true;
+    }
+
+    // 判断横向是否有障碍物
+    function noBlockHorizontal(row, col1, col2, board) {
+        for (var i = col1 + 1; i < col2; i++) {
+            if (board[row][i] != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // 判断纵向是否有障碍物
+    function noBlockVertical(col, row1, row2, board) {
+        for (var i = row1 + 1; i < row2; i++) {
+            if (board[i][col] != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // 显示移动动画
+    function showMoveAnimation(fromRow, fromCol, toRow, toCol) {
+        var cell = document.getElementById("cell_" + fromRow + "_" + fromCol);
+        cell.style.transform = "translate(" + getPos(toCol) + "px, " + getPos(toRow) + "px)";
+    }
+
+    // 获取位置
+    function getPos(num) {
+        return num * 100 + 20;
+    }
+
+    // 监听键盘事件
+    document.onkeydown = function (event) {
+        switch (event.keyCode) {
+            case 37: // 左
+                if (moveLeft()) {
+                    addRandomNum();
+                }
+                break
+
+            case 38: // 上 if (moveUp()) { addRandomNum(); } break; case 39: // 右 if (moveRight()) { addRandomNum(); } break; case 40: // 下 if (moveDown()) { addRandomNum(); } break; default: break; } if (!hasSpace() && !canMoveLeft() && !canMoveRight() && !canMoveUp() && !canMoveDown()) { alert("游戏结束！\n得分为：" + score); }}
+
+// 定义音频文件
+                var audioFiles = {
+                    "2": "audio/2.mp3",
+                    "4": "audio/4.mp3",
+                    "8": "audio/8.mp3",
+                    "16": "audio/16.mp3",
+                    "32": "audio/32.mp3",
+                    "64": "audio/64.mp3",
+                    "128": "audio/128.mp3",
+                    "256": "audio/256.mp3",
+                    "512": "audio/512.mp3",
+                    "1024": "audio/1024.mp3",
+                    "2048": "audio/2048.mp3"
+                };
+
+// 预加载音频文件
+                var audioElements = {};
+                for (var key in audioFiles) {
+                    var audio = new Audio(audioFiles[key]);
+                    audioElements[key] = audio;
+                }
+
+// 播放音效
+            function playAudio(num) {
+                if (audioElements[num]) {
+                    audioElements[num].currentTime = 0;
+                    audioElements[num].play();
+                }
+            }
+
+// 移动数字
+            function move(fromRow, fromCol, toRow, toCol) {
+                var cell = document.getElementById("cell_" + fromRow + "_" + fromCol);
+                cell.style.transform = "translate(" + getPos(toCol) + "px, " + getPos(toRow) + "px)";
+                playAudio(board[toRow][toCol]);
+            }
+
+// 监听触摸事件
+                document.addEventListener("touchstart", function (event) {
+                    startX = event.touches[0].pageX;
+                    startY = event.touches[0].pageY;
+                });
+
+                document.addEventListener("touchmove", function (event) {
+                    event.preventDefault();
+                });
+
+                document.addEventListener("touchend", function (event) {
+                    endX = event.changedTouches[0].pageX;
+                    endY = event.changedTouches[0].pageY;
+                    var deltaX = endX - startX;
+                    var deltaY = endY - startY;
+                    if (Math.abs(deltaX) >= Math.abs(deltaY)) {
+                        if (deltaX > 0) {
+                            // 向右移动
+                            if (moveRight()) {
+                                addRandomNum();
+                            }
+                        } else {
+                            // 向左移动
+                            if (moveLeft()) {
+                                addRandomNum();
+                            }
+                        }
+                    } else {
+                        if (deltaY > 0) {
+                            // 向下移动
+                            if (moveDown()) {
+                                addRandomNum();
+                            }
+                        } else {
+                            // 向上移动
+                            if (moveUp()) {
+                                addRandomNum();
+                            }
+                        }
+                    }
+                })
+        }
+    }
+    //改进
+    // 判断是否还有空位置
+    function hasSpace() {
+        for (var i = 0; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                if (board[i][j] == 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // 判断棋盘是否已满
+    function hasFull() {
+        for (var i = 0; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                if (board[i][j] == 0) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    // 在随机位置生成一个数字
+    function addRandomNum() {
+        if (hasFull()) {
+            return;
+        }
+        var row = parseInt(Math.floor(Math.random() * size));
+        var col = parseInt(Math.floor(Math.random() * size));
+        while (true) {
+            if (board[row][col] == 0) {
+                board[row][col] = Math.random() < 0.5 ? 2 : 4;
+                break
+            }
+            row = parseInt(Math.floor(Math.random() * size));
+            col = parseInt(Math.floor(Math.random() * size));
+        }
+    }
+
+    // 在游戏结束时弹出提示框
+    function gameOver() {
+        alert("游戏结束！\n得分为：" + score);
+    }
+
+    // 判断游戏是否结束
+    function isGameOver() {
+        if (!hasFull()) {
+            return false;
+        }
+        for (var i = 0; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                if (j + 1 < size && board[i][j] == board[i][j + 1]) {
+                    return false;
+                }
+                if (i + 1 < size && board[i][j] == board[i + 1][j]) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    // 监听键盘事件
+    document.onkeydown = function (event) {
+        switch (event.keyCode) {
+            case 37: // 左
+                if (moveLeft()) {
+                    addRandomNum();
+                    if (isGameOver()) {
+                        gameOver();
+                    }
+                }
+                break;
+            case 38: // 上
+                if (moveUp()) {
+                    addRandomNum();
+                    if (isGameOver()) {
+                        gameOver();
+                    }
+                }
+                break;
+            case 39: // 右
+                if (moveRight()) {
+                    addRandomNum();
+                    if (isGameOver()) {
+                        gameOver();
+                    }
+                }
+                break;
+            case 40: // 下
+                if (moveDown()) {
+                    addRandomNum();
+                    if (isGameOver()) {
+                        gameOver();
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    // 监听触摸事件
+    document.addEventListener("touchstart", function (event) {
+        startX = event.touches[0].pageX;
+        startY = event.touches[0].pageY;
+    });
+
+    document.addEventListener("touchmove", function (event) {
+        event.preventDefault();
+    });
+
+    document.addEventListener("touchend", function (event) {
+        endX = event.changedTouches[0].pageX;
+        endY = event.changedTouches[0].pageY;
+        var deltaX = endX - startX;
+        var deltaY = endY - startY;
+        if (Math.abs(deltaX) >= Math.abs(deltaY)) {
+            if (deltaX > 0) {
+// 向右移动
+                if (moveRight()) {
+                    addRandomNum();
+                    if (isGameOver()) {
+                        gameOver();
+                    }
+                }
+            } else {
+// 向左移动
+                if (moveLeft()) {
+                    addRandomNum();
+                    if (isGameOver()) {
+                        gameOver();
+                    }
+                }
+            }
+        } else {
+            if (deltaY > 0) {
+// 向下移动
+                if (moveDown()) {
+                    addRandomNum();
+                    if (isGameOver()) {
+                        gameOver();
+                    }
+                }
+            } else {
+// 向上移动
+                if (moveUp()) {
+                    addRandomNum();
+                    if (isGameOver()) {
+                        gameOver();
+                    }
+                }
+            }
+        }
+    });
+
+    // 撤销功能
+    var boardHistory = [];
+
+    function saveBoard() {
+        boardHistory.push(JSON.parse(JSON.stringify(board)));
+    }
+
+    function undo() {
+        if (boardHistory.length > 1) {
+            boardHistory.pop();
+            board = boardHistory[boardHistory.length - 1];
+            score = scoreHistory.pop();
+            updateBoardView();
+            updateScoreView();
+        }
+    }
+
+    // 重置游戏
+    function resetGame() {
+        board = new Array(size);
+        for (var i = 0; i < size; i++) {
+            board[i] = new Array(size);
+            for (var j = 0; j < size; j++) {
+                board[i][j] = 0;
+            }
+        }
+        score = 0;
+        updateBoardView();
+        updateScoreView();
+    }
+
+    // 自动保存游戏进度
+    function autoSave() {
+        var gameState = {
+            board: board,
+            score: score
+        };
+        localStorage.setItem("gameState", JSON.stringify(gameState));
+    }
+
+    function loadGame() {
+        var gameState = JSON.parse(localStorage.getItem("gameState"));
+        board = gameState.board;
+        score = gameState.score;
+        updateBoardView();
+        updateScoreView();
+    }
+
+    // 初始化游戏
+    var size = 4;
+    var board = new_game(size);
+    var score = 0;
+    var startX = 0;
+    var startY = 0;
+    var endX = 0;
+    var endY = 0;
+    addRandomNum();
+    addRandomNum();
+    updateBoardView();
+    updateScoreView();
+    saveBoard();
+    autoSave();
+
+    继续
+
+    // 更新棋盘视图
+    function updateBoardView() {
+        for (var i = 0; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                var numCell = document.getElementById("num-cell-" + i + "-" + j);
+                if (board[i][j] == 0) {
+                    numCell.innerHTML = "";
+                    numCell.className = "num-cell";
+                } else {
+                    numCell.innerHTML = board[i][j];
+                    numCell.className = "num-cell num-" + board[i][j];
+                }
+            }
+        }
+    }
+
+    // 更新得分视图
+    function updateScoreView() {
+        var scoreView = document.getElementById("score");
+        scoreView.innerHTML = score;
+    }
+
+    // 向左移动
+    function moveLeft() {
+        if (!canMoveLeft()) {
+            return false;
+        }
+        for (var i = 0; i < size; i++) {
+            for (var j = 1; j < size; j++) {
+                if (board[i][j] != 0) {
+                    for (var k = 0; k < j; k++) {
+                        if (board[i][k] == 0 && noBlockHorizontal(i, k, j, board)) {
+// 移动
+                            showMoveAnimation(i, j, i, k);
+                            board[i][k] = board[i][j];
+                            board[i][j] = 0;
+                            break;
+                        } else if (board[i][k] == board[i][j] && noBlockHorizontal(i, k, j, board)) {
+// 合并
+                            showMoveAnimation(i, j, i, k);
+                            board[i][k] *= 2;
+                            board[i][j] = 0;
+                            score += board[i][k];
+                            updateScoreView();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        saveBoard();
+        autoSave();
+        return true;
+    }
+
+    // 向右移动
+    function moveRight() {
+        if (!canMoveRight()) {
+            return false;
+        }
+        for (var i = 0; i < size; i++) {
+            for (var j = size - 2; j >= 0; j--) {
+                if (board[i][j] != 0) {
+                    for (var k = size - 1; k > j; k--) {
+                        if (board[i][k] == 0 && noBlockHorizontal(i, j, k, board)) {
+// 移动
+                            showMoveAnimation(i, j, i, k);
+                            board[i][k] = board[i][j];
+                            board[i][j] = 0;
+                            break;
+                        } else if (board[i][k] == board[i][j] && noBlockHorizontal(i, j, k, board)) {
+// 合并
+                            showMoveAnimation(i, j, i, k);
+                            board[i][k] *= 2;
+                            board[i][j] = 0;
+                            score += board[i][k];
+                            updateScoreView();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        saveBoard();
+        autoSave();
+        return true;
+    }
+
+    // 向上移动
+    function moveUp() {
+        if (!canMoveUp()) {
+            return false;
+        }
+        for (var j = 0; j < size; j++) {
+            for (var i = 1; i < size; i++) {
+                if (board[i][j] != 0) {
+                    for (var k = 0; k < i; k++) {
+                        if (board[k][j] == 0 && noBlockVertical(j, k, i, board)) {
+// 移动
+                            showMoveAnimation(i, j, k, j);
+                            board[k][j] = board[i][j];
+                            board[i][j] = 0;
+                            break;
+                        } else if (board[k][j] == board[i][j] && noBlockVertical(j, k, i, board)) {
+// 合并
+                            showMoveAnimation(i, j, k, j);
+                            board[k][j] *= 2;
+                            board[i][j] = 0;
+                            score += board[k][j];
+                            updateScoreView();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        saveBoard();
+        autoSave();
+        return true;
+    }
+
+    // 向下移动
+    function moveDown() {
+        if (!canMoveDown()) {
+            return false;
+        }
+        for (var j = 0; j < size; j++) {
+            for (var i = size - 2; i >= 0; i--) {
+                if (board[i][j] != 0) {
+                    for (var k = size - 1; k > i; k--) {
+                        if (board[k][j] == 0 && noBlockVertical(j, i, k, board)) {
+// 移动
+                            showMoveAnimation(i, j, k, j);
+                            board[k][j] = board[i][j];
+                            board[i][j] = 0;
+                            break;
+                        } else if (board[k][j] == board[i][j] && noBlockVertical(j, i, k, board)) {
+// 合并
+                            showMoveAnimation(i, j, k, j);
+                            board[k][j] *= 2;
+                            board[i][j] = 0;
+                            score += board[k][j];
+                            updateScoreView();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        saveBoard();
+        autoSave();
+        return true;
+    }
+
+    // 判断能否向左移动
+    function canMoveLeft() {
+        for (var i = 0; i < size; i++) {
+            for (var j = 1; j < size; j++) {
+                if (board[i][j] != 0) {
+                    if (board[i][j - 1] == 0 || board[i][j - 1] == board[i][j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 判断能否向右移动
+    function canMoveRight() {
+        for (var i = 0; i < size; i++) {
+            for (var j = size - 2; j >= 0; j--) {
+                if (board[i][j] != 0) {
+                    if (board[i][j + 1] == 0 || board[i][j + 1] == board[i][j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 判断能否向上移动
+    function canMoveUp() {
+        for (var j = 0; j < size; j++) {
+            for (var i = 1; i < size; i++) {
+                if (board[i][j] != 0) {
+                    if (board[i - 1][j] == 0 || board[i - 1][j] == board[i][j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 判断能否向下移动
+    function canMoveDown() {
+        for (var j = 0; j < size; j++) {
+            for (var i = size - 2; i >= 0; i--) {
+                if (board[i][j] != 0) {
+                    if (board[i + 1][j] == 0 || board[i + 1][j] == board[i][j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 判断水平方向是否有障碍物
+    function noBlockHorizontal(row, col1, col2, board) {
+        for (var i = col1 + 1; i < col2; i++) {
+            if (board[row][i] != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // 判断垂直方向是否有障碍物
+    function noBlockVertical(col, row1, row2, board) {
+        for (var i = row1 + 1; i < row2; i++) {
+            if (board[i][col] != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // 显示移动动画
+    function showMoveAnimation(fromRow, fromCol, toRow, toCol) {
+        var numCell = document.getElementById("num-cell-" + fromRow + "-" + fromCol);
+        numCell.style.left = getPosLeft(toCol) + "px";
+        numCell.style.top = getPosTop(toRow) + "px";
+    }
+
+    // 获取数字格的left值
+    function getPosLeft(col) {
+        return col * 100 + 20;
+    }
+
+    // 获取数字格的top值
+    function getPosTop(row) {
+        return row * 100 + 20;
+    }
+
+    // 初始化游戏界面
+    function init() {
+        var container = document.getElementById("container");
+        for (var i = 0; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                var gridCell = document.createElement("div");
+                gridCell.className = "grid-cell";
+                gridCell.id = "grid-cell-" + i + "-" + j;
+                gridCell.style.left = getPosLeft(j) + "px";
+                gridCell.style.top = getPosTop(i) + "px";
+                container.appendChild(gridCell);
+
+                var numCell = document.createElement("div");
+                numCell.className = "num-cell";
+                numCell.id = "num-cell-" + i + "-" + j;
+                numCell.style.left = getPosLeft(j) + "px";
+                numCell.style.top = getPosTop(i) + "px";
+                container.appendChild(numCell);
+            }
+        }
+    }
+
+    // 加载游戏
+    function load() {
+        if (localStorage.getItem("gameState")) {
+            loadGame();
+        }
+    }
+
+    // 开始游戏
+    init();
+    load();
+
+
+    // 重新开始游戏
+    function restart() {
+        resetGame();
+        addRandomNum();
+        addRandomNum();
+    }
+
+    // 显示游戏规则
+    function showRules() {
+        var rules = "游戏规则：\n\n";
+        rules += "1. 操作方向键或滑动屏幕，将相同数字的方块合并。\n";
+        rules += "2. 每次操作会随机生成一个数字方块，数字为2或4。\n";
+        rules += "3. 当棋盘被填满且无法继续合并时，游戏结束。\n";
+        rules += "4. 得分为所有数字方块的数字之和。\n\n";
+        rules += "祝你好运！";
+        alert(rules);
+    }
+
+    // 显示关于界面
+    function showAbout() {
+        var about = "关于2048游戏：\n\n";
+        about += "本游戏是由Gabriele Cirulli开发的一款益智游戏。\n";
+        about += "原版游戏网址：http://gabrielecirulli.github.io/2048/\n\n";
+        about += "本版本由XXX改进，增加了撤销、重置和自动保存游戏进度等功能。\n\n";
+        about += "欢迎访问我的博客：http://www.xxx.com";
+        alert(about);
+    }
+
+    // 显示帮助界面
+    function showHelp() {
+        var help = "游戏操作：\n\n";
+        help += "使用方向键或滑动屏幕，将相同数字的方块合并。\n";
+        help += "按R键或点击“重新开始”按钮，重新开始游戏。\n";
+        help += "按U键或点击“撤销”按钮，撤销上一步操作。\n";
+        help += "按H键或点击“帮助”按钮，显示帮助界面。\n";
+        help += "按A键或点击“关于”按钮，显示关于界面。\n\n";
+        help += "祝你好运！";
+        alert(help);
+    }
+
+    // 绑定按钮事件
+    document.getElementById("restart").onclick = restart;
+    document.getElementById("undo").onclick = undo;
+    document.getElementById("rules").onclick = showRules;
+    document.getElementById("about").onclick = showAbout;
+    document.getElementById("help").onclick = showHelp;
+
+
+    // 绑定滑动事件
+    var startX, startY;
+    document.addEventListener("touchstart", function (event) {
+        startX = event.touches[0].clientX;
+        startY = event.touches[0].clientY;
+    });
+
+    document.addEventListener("touchend", function (event) {
+        var endX = event.changedTouches[0].clientX;
+        var endY = event.changedTouches[0].clientY;
+        var deltaX = endX - startX;
+        var deltaY = endY - startY;
+        if (Math.abs(deltaX) < 50 && Math.abs(deltaY) < 50) {
+            return;
+        }
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+            if (deltaX > 0) {
+// 向右滑动
+                if (moveRight()) {
+                    addRandomNum();
+                    if (isGameOver()) {
+                        gameOver();
+                    }
+                }
+            } else {
+// 向左滑动
+                if (moveLeft()) {
+                    addRandomNum();
+                    if (isGameOver()) {
+                        gameOver();
+                    }
+                }
+            }
+        } else {
+            if (deltaY > 0) {
+// 向下滑动
+                if (moveDown()) {
+                    addRandomNum();
+                    if (isGameOver()) {
+                        gameOver();
+                    }
+                }
+            } else {
+// 向上滑动
+                if (moveUp()) {
+                    addRandomNum();
+                    if (isGameOver()) {
+                        gameOver();
+                    }
+                }
+            }
+        }
+    });
+
+
+    // 添加键盘快捷键
+    document.addEventListener("keydown", function (event) {
+        if (event.ctrlKey || event.metaKey) {
+            switch (event.keyCode) {
+                case 90: // Ctrl + Z 撤销
+                    undo();
+                    break;
+                case 82: // Ctrl + R 重新开始
+                    restart();
+                    break;
+                case 83: // Ctrl + S 保存游戏进度
+                    autoSave();
+                    break;
+            }
+        }
+    });
+
+    // 添加移动端手势支持
+    var hammer = new Hammer(document.getElementById("container"));
+    hammer.get("swipe").set({direction: Hammer.DIRECTION_ALL});
+    hammer.on("swipeleft", function () {
+        if (moveLeft()) {
+            addRandomNum();
+            if (isGameOver()) {
+                gameOver();
+            }
+        }
+    });
+
+    hammer.on("swiperight", function () {
+        if (moveRight()) {
+            addRandomNum();
+            if (isGameOver()) {
+                gameOver();
+            }
+        }
+    });
+
+    hammer.on("swipeup", function () {
+        if (moveUp()) {
+            addRandomNum();
+            if (isGameOver()) {
+                gameOver();
+            }
+        }
+    });
+
+    hammer.on("swipedown", function () {
+        if (moveDown()) {
+            addRandomNum();
+            if (isGameOver()) {
+                gameOver();
+            }
+        }
+    });
+
+
+    // 撤销上一步操作
+    function undo() {
+        if (history.length <= 1) {
+            return;
+        }
+        board = history[history.length - 2].board;
+        score = history[history.length - 2].score;
+        updateBoardView();
+        updateScoreView();
+        history.pop();
+    }
+
+    // 保存游戏进度
+    function autoSave() {
+        localStorage.setItem("gameState", JSON.stringify({
+            board: board,
+            score: score
+        }));
+    }
+
+    // 加载游戏进度
+    function loadGame() {
+        var gameState = JSON.parse(localStorage.getItem("gameState"));
+        board = gameState.board;
+        score = gameState.score;
+        updateBoardView();
+        updateScoreView();
+    }
+
+    // 重置游戏
+    function resetGame() {
+        board = [];
+        score = 0;
+        history = [];
+        for (var i = 0; i < size; i++) {
+            board[i] = [];
+            for (var j = 0; j < size; j++) {
+                board[i][j] = 0;
+            }
+        }
+        updateBoardView();
+        updateScoreView();
+        addRandomNum();
+        addRandomNum();
+    }
+
+    // 判断游戏是否结束
+    function isGameOver() {
+        if (getEmptyNum() > 0) {
+            return false;
+        }
+        for (var i = 0; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                if (j < size - 1 && board[i][j] == board[i][j + 1]) {
+                    return false;
+                }
+                if (i < size - 1 && board[i][j] == board[i + 1][j]) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    // 游戏结束
+    function gameOver() {
+        alert("游戏结束！\n得分：" + score);
+        autoSave();
+    }
+
+    // 更新棋盘视图
+    function updateBoardView() {
+        for (var i = 0; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                var numCell = document.getElementById("num-cell-" + i + "-" + j);
+                if (board[i][j] == 0) {
+                    numCell.innerHTML = "";
+                    numCell.className = "num-cell";
+                } else {
+                    numCell.innerHTML = board[i][j];
+                    numCell.className = "num-cell num-cell-" + board[i][j];
+                }
+            }
+        }
+    }
+
+    // 更新分数视图
+    function updateScoreView() {
+        document.getElementById("score").innerHTML = score;
+    }
+
+    // 获取空白格子数量
+    function getEmptyNum() {
+        var count = 0;
+        for (var i = 0; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                if (board[i][j] == 0) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    // 随机生成数字方块
+    function addRandomNum() {
+        if (getEmptyNum() == 0) {
+            return false;
+        }
+        var randX = parseInt(Math.floor(Math.random() * size));
+        var randY = parseInt(Math.floor(Math.random() * size));
+        while (true) {
+            if (board[randX][randY] == 0) {
+                break;
+            }
+            randX = parseInt(Math.floor(Math.random() * size));
+            randY = parseInt(Math.floor(Math.random() * size));
+        }
+        var randNum = Math.random() < 0.5 ? 2 : 4;
+        board[randX][randY] = randNum;
+        showNumAnimation(randX, randY, randNum);
+        return true;
+    }
+
+    // 显示数字方块动画
+    function showNumAnimation(i, j, randNum) {
+        var numCell = document.getElementById("num-cell-" + i + "-" + j);
+        numCell.innerHTML = randNum;
+        numCell.className = "num-cell num-cell-" + randNum + " num-cell-new";
+        setTimeout(function () {
+            numCell.className = "num-cell num-cell-" + randNum;
+        }, 100);
+    }
+
+    // 保存历史记录
+    function saveBoard() {
+        var newBoard = JSON.parse(JSON.stringify({
+            board: board,
+            score: score
+        }));
+        history.push(newBoard);
+    }
+
+
+    // 检查是否可以撤销
+    function checkUndo() {
+        if (history.length <= 1) {
+            document.getElementById("undo").disabled = true;
+        } else {
+            document.getElementById("undo").disabled = false;
+        }
+    }
+
+    // 更新游戏状态
+    function updateGameState() {
+        autoSave();
+        checkUndo();
+    }
+
+    // 初始化游戏状态
+    function initGameState() {
+        history = [];
+        saveBoard();
+        updateGameState();
+    }
+
+    // 初始化游戏
+    function init() {
+        var container = document.getElementById("container");
+        for (var i = 0; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                var gridCell = document.createElement("div");
+                gridCell.className = "grid-cell";
+                gridCell.id = "grid-cell-" + i + "-" + j;
+                gridCell.style.left = getPosLeft(j) + "px";
+                gridCell.style.top = getPosTop(i) + "px";
+                container.appendChild(gridCell);
+
+                var numCell = document.createElement("div");
+                numCell.className = "num-cell";
+                numCell.id = "num-cell-" + i + "-" + j;
+                numCell.style.left = getPosLeft(j) + "px";
+                numCell.style.top = getPosTop(i) + "px";
+                container.appendChild(numCell);
+            }
+        }
+        resetGame();
+        initGameState();
+    }
+
+    // 加载游戏
+    function load() {
+        if (localStorage.getItem("gameState")) {
+            loadGame();
+        }
+        checkUndo();
+    }
+
+    // 重新开始游戏
+    function restart() {
+        resetGame();
+        initGameState();
+    }
+
+    // 显示游戏规则
+    function showRules() {
+        var rules = "游戏规则：\n\n";
+        rules += "1. 操作方向键或滑动屏幕，将相同数字的方块合并。\n";
+        rules += "2. 每次操作会随机生成一个数字方块，数字为2或4。\n";
+        rules += "3. 当棋盘被填满且无法继续合并时，游戏结束。\n";
+        rules += "4. 得分为所有数字方块的数字之和。\n\n";
+        rules += "祝你好运！";
+        alert(rules);
+    }
+
+    // 显示关于界面
+    function showAbout() {
+        var about = "关于2048游戏：\n\n";
+        about += "本游戏是由Gabriele Cirulli开发的一款益智游戏。\n";
+        about += "原版游戏网址：http://gabrielecirulli.github.io/2048/\n\n";
+        about += "本版本由XXX改进，增加了撤销、重置和自动保存游戏进度等功能。\n\n";
+        about += "欢迎访问我的博客：http://www.xxx.com";
+        alert(about);
+    }
+
+    // 重置游戏
+    function resetGame() {
+        score = 0;
+        updateScore();
+        for (var i = 0; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                board[i][j] = 0;
+                var numCell = document.getElementById("num-cell-" + i + "-" + j);
+                numCell.innerText = "";
+                numCell.className = "num-cell";
+            }
+        }
+        generateNumber();
+        generateNumber();
+    }
+
+    // 更新分数
+    function updateScore() {
+        var scoreContainer = document.getElementById("score-container");
+        scoreContainer.innerText = score;
+    }
+
+    // 生成随机数字
+    function generateNumber() {
+        if (noSpace()) {
+            return false;
+        }
+// 随机一个位置
+        var randX = parseInt(Math.floor(Math.random() * size));
+        var randY = parseInt(Math.floor(Math.random() * size));
+        var times = 0;
+        while (times < 50) {
+            if (board[randX][randY] == 0) {
+                break;
+            }
+            randX = parseInt(Math.floor(Math.random() * size));
+            randY = parseInt(Math.floor(Math.random() * size));
+            times++;
+        }
+        if (times == 50) {
+            for (var i = 0; i < size; i++) {
+                for (var j = 0; j < size; j++) {
+                    if (board[i][j] == 0) {
+                        randX = i;
+                        randY = j;
+                    }
+                }
+            }
+        }
+// 随机一个数字
+        var randNum = Math.random() < 0.5 ? 2 : 4;
+// 在随机位置显示随机数字
+        board[randX][randY] = randNum;
+        showNumberWithAnimation(randX, randY, randNum);
+        return true;
+    }
+
+    // 判断棋盘是否还有空格
+    function noSpace() {
+        for (var i = 0; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                if (board[i][j] == 0) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    // 判断是否可以向左移动
+    function canMoveLeft() {
+        for (var i = 0; i < size; i++) {
+            for (var j = 1; j < size; j++) {
+                if (board[i][j] != 0) {
+                    if (board[i][j - 1] == 0 || board[i][j - 1] == board[i][j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 判断是否可以向右移动
+    function canMoveRight() {
+        for (var i = 0; i < size; i++) {
+            for (var j = size - 2; j >= 0; j--) {
+                if (board[i][j] != 0) {
+                    if (board[i][j + 1] == 0 || board[i][j + 1] == board[i][j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 判断是否可以向上移动
+    function canMoveUp() {
+        for (var i = 1; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                if (board[i][j] != 0) {
+                    if (board[i - 1][j] == 0 || board[i - 1][j] == board[i][j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 判断是否可以向下移动
+    function canMoveDown() {
+        for (var i = size - 2; i >= 0; i--) {
+            for (var j = 0; j < size; j++) {
+                if (board[i][j] != 0) {
+                    if (board[i + 1][j] == 0 || board[i + 1][j] == board[i][j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 判断是否可以移动
+    function canMove() {
+        if (canMoveLeft() || canMoveRight() || canMoveUp() || canMoveDown()) {
+            return true;
+        }
+        return false;
+    }
+
+    // 向左移动
+    function moveLeft() {
+        if (!canMoveLeft()) {
+            return false;
+        }
+        for (var i = 0; i < size; i++) {
+            for (var j = 1; j < size; j++) {
+                if (board[i][j] != 0) {
+                    for (var k = 0; k < j; k++) {
+                        if (board[i][k] == 0 && noBlockHorizontal(i, k, j)) {
+// 移动数字方块
+                            showMoveAnimation(i, j, i, k);
+                            board[i][k] = board[i][j];
+                            board[i][j] = 0;
+                            continue;
+                        } else if (board[i][k] == board[i][j] && noBlockHorizontal(i, k, j)) {
+// 合并数字方块
+                            showMoveAnimation(i, j, i, k);
+                            board[i][k] += board[i][j];
+                            board[i][j] = 0;
+                            score += board[i][k];
+                            updateScore();
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+        setTimeout("generateNumber()", 200);
+        setTimeout("checkGameOver()", 300);
+        return true;
+    }
+
+    // 向右移动
+    function moveRight() {
+        if (!canMoveRight()) {
+            return false;
+        }
+        for (var i = 0; i < size; i++) {
+            for (var j = size - 2; j >= 0; j--) {
+                if (board[i][j] != 0) {
+                    for (var k = size - 1; k > j; k--) {
+                        if (board[i][k] == 0 && noBlockHorizontal(i, j, k)) {
+// 移动数字方块
+                            showMoveAnimation(i, j, i, k);
+                            board[i][k] = board[i][j];
+                            board[i][j] = 0;
+                            continue;
+                        } else if (board[i][k] == board[i][j] && noBlockHorizontal(i, j, k)) {
+// 合并数字方块
+                            showMoveAnimation(i, j, i, k);
+                            board[i][k] += board[i][j];
+                            board[i][j] = 0;
+                            score += board[i][k];
+                            updateScore();
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+        setTimeout("generateNumber()", 200);
+        setTimeout("checkGameOver()", 300);
+        return true;
+    }
+
+    // 向上移动
+    function moveUp() {
+        if (!canMoveUp()) {
+            return false;
+        }
+        for (var i = 1; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                if (board[i][j] != 0) {
+                    for (var k = 0; k < i; k++) {
+                        if (board[k][j] == 0 && noBlockVertical(j, k, i)) {
+// 移动数字方块
+                            showMoveAnimation(i, j, k, j);
+                            board[k][j] = board[i][j];
+                            board[i][j] = 0;
+                            continue;
+                        } else if (board[k][j] == board[i][j] && noBlockVertical(j, k, i)) {
+// 合并数字方块
+                            showMoveAnimation(i, j, k, j);
+                            board[k][j] += board[i][j];
+                            board[i][j] = 0;
+                            score += board[k][j];
+                            updateScore();
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+        setTimeout("generateNumber()", 200);
+        setTimeout("checkGameOver()", 300);
+        return true;
+    }
+
+    // 向下移动
+    function moveDown() {
+        if (!canMoveDown()) {
+            return false;
+        }
+        for (var i = size - 2; i >= 0; i--) {
+            for (var j = 0; j < size; j++) {
+                if (board[i][j] != 0) {
+                    for (var k = size - 1; k > i; k--) {
+                        if (board[k][j] == 0 && noBlockVertical(j, i, k)) {
+// 移动数字方块
+                            showMoveAnimation(i, j, k, j);
+                            board[k][j] = board[i][j];
+                            board[i][j] = 0;
+                            continue;
+                        } else if (board[k][j] == board[i][j] && noBlockVertical(j, i, k)) {
+// 合并数字方块
+                            showMoveAnimation(i, j, k, j);
+                            board[k][j] += board[i][j];
+                            board[i][j] = 0;
+                            score += board[k][j];
+                            updateScore();
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+        setTimeout("generateNumber()", 200);
+        setTimeout("checkGameOver()", 300);
+        return true;
+    }
+
+    // 判断水平方向上是否有障碍物
+    function noBlockHorizontal(row, col1, col2) {
+        for (var i = col1 + 1; i < col2; i++) {
+            if (board[row][i] != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // 判断垂直方向上是否有障碍物
+    function noBlockVertical(col, row1, row2) {
+        for (var i = row1 + 1; i < row2; i++) {
+            if (board[i][col] != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // 检查游戏是否结束
+    function checkGameOver() {
+        if (noSpace() && !canMove()) {
+            gameOver();
+        }
+    }
+
+    // 游戏结束
+    function gameOver() {
+        alert("游戏结束！\n\n得分：" + score);
+        saveScore(score);
+        resetGame();
+        initGameState();
+    }
+
+    // 显示移动动画
+    function showMoveAnimation(fromX, fromY, toX, toY) {
+        var numCell = document.getElementById("num-cell-" + fromX + "-" + fromY);
+        numCell.style.left = getPosLeft(toY) + "px";
+        numCell.style.top = getPosTop(toX) + "px";
+        numCell.id = "num-cell-" + toX + "-" + toY;
+    }
+
+    // 显示数字方块动画
+    function showNumberWithAnimation(i, j, randNum) {
+        var numCell = document.getElementById("num-cell-" + i + "-" + j);
+        numCell.innerText = randNum;
+        numCell.className = "num-cell num-cell-" + randNum;
+        numCell.classList.add("num-cell-new");
+        setTimeout(function () {
+            numCell.classList.remove("num-cell-new");
+        }, 100);
+    }
+
+    // 获取数字方块位置
+    function getPosTop(i) {
+        return 20 + i * 120;
+    }
+
+    function getPosLeft(j) {
+        return 20 + j * 120;
+    }
+
+    // 保存游戏
+    function saveBoard() {
+        var gameState = {
+            board: board,
+            score: score
+        };
+        localStorage.setItem("gameState", JSON.stringify(gameState));
+    }
+
+    // 加载游戏
+    function loadGame() {
+        var gameState = JSON.parse(localStorage.getItem("gameState"));
+        board = gameState.board;
+        score = gameState.score;
+        updateBoardView();
+        updateScore();
+    }
+
+    // 更新游戏界面
+    function updateBoardView() {
+        for (var i = 0; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                var numCell = document.getElementById("num-cell-" + i + "-" + j);
+                numCell.innerText = board[i][j];
+                numCell.className = "num-cell num-cell-" + board[i][j];
+            }
+        }
+    }
+
+    // 自动保存游戏
+    function autoSave() {
+        saveBoard();
+        var gameState = JSON.parse(localStorage.getItem("gameState"));
+        var savedBoard = gameState.board;
+        var savedScore = gameState.score;
+        if (!arraysEqual(board, savedBoard) || score != savedScore) {
+            saveScore(score);
+        }
+    }
+
+    // 保存得分
+    function saveScore(score) {
+        var highScores = JSON.parse(localStorage.getItem("highScores")) || [];
+        highScores.push(score);
+        highScores.sort(function (a, b) {
+            return b - a;
+        });
+        highScores = highScores.slice(0, 10);
+        localStorage.setItem("highScores", JSON.stringify(highScores));
+    }
+
+    // 获取高分榜
+    function getHighScores() {
+        var highScores = JSON.parse(localStorage.getItem("highScores")) || [];
+        return highScores;
+    }
+
+    // 撤销上一步操作
+    function undo() {
+        if (history.length <= 1) {
+            return;
+        }
+        history.pop();
+        board = JSON.parse(JSON.stringify(history[history.length - 1]));
+        updateBoardView();
+        score = JSON.parse(JSON.stringify(history[history.length - 1].score));
+        updateScore();
+    }
+
+    // 检查是否可以撤销操作
+    function checkUndo() {
+        var undoButton = document.getElementById("undo-button");
+        if (history.length <= 1) {
+            undoButton.disabled = true;
+        } else {
+            undoButton.disabled = false;
+        }
+    }
+
+    // 比较两个数组是否相等
+    function arraysEqual(arr1, arr2) {
+        if (arr1.length !== arr2.length) {
+            return false;
+        }
+        for (var i = 0; i < arr1.length; i++) {
+            if (arr1[i].length !== arr2[i].length) {
+                return false;
+            }
+            for (var j = 0; j < arr1[i].length; j++) {
+                if (arr1[i][j] !== arr2[i][j]) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    // 重新开始游戏
+    function resetGame() {
+        board = [];
+        score = 0;
+        history = [];
+        initGameState();
+        updateBoardView();
+        updateScore();
+        saveBoard();
+    }
+
+    // 初始化游戏状态
+    function initGameState() {
+        for (var i = 0; i < size; i++) {
+            board[i] = [];
+            for (var j = 0; j < size; j++) {
+                board[i][j] = 0;
+            }
+        }
+        generateNumber();
+        generateNumber();
+        history.push({
+            board: board,
+            score: score
+        });
+    }
+
+
+    // 更新分数
+    function updateScore() {
+        var scoreLabel = document.getElementById("score-label");
+        scoreLabel.innerText = score;
+    }
+
+    // 在空白位置生成数字方块
+    function generateNumber() {
+        if (noSpace()) {
+            return false;
+        }
+        var randX = parseInt(Math.floor(Math.random() * size));
+        var randY = parseInt(Math.floor(Math.random() * size));
+        var times = 0;
+        while (times < 50) {
+            if (board[randX][randY] == 0) {
+                break;
+            }
+            randX = parseInt(Math.floor(Math.random() * size));
+            randY = parseInt(Math.floor(Math.random() * size));
+            times++;
+        }
+        if (times == 50) {
+            for (var i = 0; i < size; i++) {
+                for (var j = 0; j < size; j++) {
+                    if (board[i][j] == 0) {
+                        randX = i;
+                        randY = j;
+                    }
+                }
+            }
+        }
+        var randNum = Math.random() < 0.5 ? 2 : 4;
+        board[randX][randY] = randNum;
+        showNumberWithAnimation(randX, randY, randNum);
+        saveBoard();
+    }
+
+    // 判断是否还有空白位置
+    function noSpace() {
+        for (var i = 0; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                if (board[i][j] == 0) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    // 判断是否可以移动
+    function canMove() {
+        if (canMoveLeft() || canMoveRight() || canMoveUp() || canMoveDown()) {
+            return true;
+        }
+        return false;
+    }
+
+    // 判断是否可以向左移动
+    function canMoveLeft() {
+        for (var i = 0; i < size; i++) {
+            for (var j = 1; j < size; j++) {
+                if (board[i][j] != 0) {
+                    if (board[i][j - 1] == 0 || board[i][j - 1] == board[i][j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 判断是否可以向右移动
+    function canMoveRight() {
+        for (var i = 0; i < size; i++) {
+            for (var j = size - 2; j >= 0; j--) {
+                if (board[i][j] != 0) {
+                    if (board[i][j + 1] == 0 || board[i][j + 1] == board[i][j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 判断是否可以向上移动
+    function canMoveUp() {
+        for (var i = 1; i < size; i++) {
+            for (var j = 0; j < size; j++) {
+                if (board[i][j] != 0) {
+                    if (board[i - 1][j] == 0 || board[i - 1][j] == board[i][j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // 判断是否可以向下移动
+    function canMoveDown() {
+        for (var i = size - 2; i >= 0; i--) {
+            for (var j = 0; j < size; j++) {
+                if (board[i][j] != 0) {
+                    if (board[i + 1][j] == 0 || board[i + 1][j] == board[i][j]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+
+    // 开始游戏
+    function startGame() {
+        resetGame();
+        var startButton = document.getElementById("start-button");
+        startButton.style.display = "none";
+        var gameContainer = document.getElementById("game-container");
+        gameContainer.style.display = "block";
+        loadGame();
+        setInterval(autoSave, 1000);
+    }
+
+    // 绑定按键事件
+    document.onkeydown = function (event) {
+        switch (event.keyCode) {
+            case 37: // left
+                event.preventDefault();
+                if (moveLeft()) {
+                    history.push({
+                        board: JSON.parse(JSON.stringify(board)),
+                        score: score
+                    });
+                    checkUndo();
+                }
+                break;
+            case 38: // up
+                event.preventDefault();
+                if (moveUp()) {
+                    history.push({
+                        board: JSON.parse(JSON.stringify(board)),
+                        score: score
+                    });
+                    checkUndo();
+                }
+                break;
+            case 39: // right
+                event.preventDefault();
+                if (moveRight()) {
+                    history.push({
+                        board: JSON.parse(JSON.stringify(board)),
+                        score: score
+                    });
+                    checkUndo();
+                }
+                break;
+            case 40: // down
+                event.preventDefault();
+                if (moveDown()) {
+                    history.push({
+                        board: JSON.parse(JSON.stringify(board)),
+                        score: score
+                    });
+                    checkUndo();
+                }
+                break;
+            case 27: // esc
+                event.preventDefault();
+                resetGame();
+                break;
+            case 85: // u
+                event.preventDefault();
+                undo();
+                break;
+            default:
+                break;
+        }
+    }
+
+    // 绑定触摸事件
+    var startX, startY, endX, endY;
+    var gameContainer = document.getElementById("game-container");
+    gameContainer.addEventListener("touchstart", function (event) {
+        startX = event.touches[0].pageX;
+        startY = event.touches[0].pageY;
+    });
+
+    gameContainer.addEventListener("touchmove", function (event) {
+        event.preventDefault();
+    });
+
+    gameContainer.addEventListener("touchend", function (event) {
+        endX = event.changedTouches[0].pageX;
+        endY = event.changedTouches[0].pageY;
+        var deltaX = endX - startX;
+        var deltaY = endY - startY;
+        if (Math.abs(deltaX) < 0.1 * document.documentElement.clientWidth && Math.abs(deltaY) < 0.1 * document.documentElement.clientWidth) {
+            return;
+        }
+        if (Math.abs(deltaX) >= Math.abs(deltaY)) {
+            if (deltaX > 0) {
+// right
+                if (moveRight()) {
+                    history.push({
+                        board: JSON.parse(JSON.stringify(board)),
+                        score: score
+                    });
+                    checkUndo();
+                }
+            } else {
+// left
+                if (moveLeft()) {
+                    history.push({
+                        board: JSON.parse(JSON.stringify(board)),
+                        score: score
+                    });
+                    checkUndo();
+                }
+            }
+        } else {
+            if (deltaY > 0) {
+// down
+                if (moveDown()) {
+                    history.push({
+                        board: JSON.parse(JSON.stringify(board)),
+                        score: score
+                    });
+                    checkUndo();
+                }
+            } else {
+// up
+                if (moveUp()) {
+                    history.push({
+                        board: JSON.parse(JSON.stringify(board)),
+                        score: score
+                    });
+                    checkUndo();
+                }
+            }
+        }
+    });
+
+    // 初始化游戏
+    initGameState();
+
+
+    // 显示高分榜
+    function showHighScores() {
+        var highScores = getHighScores();
+        var highScoreList = document.getElementById("high-score-list");
+        highScoreList.innerHTML = "";
+        for (var i = 0; i < highScores.length; i++) {
+            var highScoreItem = document.createElement("li");
+            highScoreItem.innerText = (i + 1) + ". " + highScores[i];
+            highScoreList.appendChild(highScoreItem);
+        }
+    }
+
+    // 隐藏高分榜
+    function hideHighScores() {
+        var highScoreList = document.getElementById("high-score-list");
+        highScoreList.innerHTML = "";
+    }
+
+    // 显示帮助信息
+    function showHelp() {
+        var helpText = "使用方向键或手势进行移动\n\n" +
+            "合并相同数字的方块，得到更高的分数\n\n" +
+            "当所有方块都被填满，且无法移动时游戏结束\n\n" +
+            "按 ESC 重新开始游戏，按 U 撤销上一步操作\n\n" +
+            "自动保存游戏进度，每秒钟保存一次\n\n" + "尝试创造最高分数，进入高分榜吧！";
+        alert(helpText);
+    }
+
+    // 显示关于信息
+    function showAbout() {
+        var aboutText = "2048 游戏\n\n" +
+            "作者：Gabriele Cirulli\n" +
+            "原版地址：https://play2048.co/\n\n" +
+            "改进版作者：你的名字\n" +
+            "改进版地址：你的地址\n\n" +
+            "欢迎提出宝贵意见和建议！";
+        alert(aboutText);
+    }
+
+    // 绑定按钮事件
+    var highScoresButton = document.getElementById("high-scores-button");
+    highScoresButton.addEventListener("click", showHighScores);
+
+    var hideScoresButton = document.getElementById("hide-scores-button");
+    hideScoresButton.addEventListener("click", hideHighScores);
+
+    var helpButton = document.getElementById("help-button");
+    helpButton.addEventListener("click", showHelp);
+
+    var aboutButton = document.getElementById("about-button");
+    aboutButton.addEventListener("click", showAbout);
+
+    // 自动保存游戏进度
+    setInterval(function () {
+        saveGameState();
+    }, 1000);
+
+    case
+    39
+    : // right
+    event.preventDefault();
+    if (moveRight()) {
+        history.push({
+            board: JSON.parse(JSON.stringify(board)),
+            score: score
+        });
+        checkUndo();
+    }
+    break;
+    case
+    40
+    : // down
+    event.preventDefault();
+    if (moveDown()) {
+        history.push({
+            board: JSON.parse(JSON.stringify(board)),
+            score: score
+        });
+        checkUndo();
+    }
+    break;
+    case
+    27
+    : // esc
+    event.preventDefault();
+    resetGame();
+    break;
+    case
+    85
+    : // u
+    event.preventDefault();
+    undo();
+    break;
+    default:
+    break;
+    }
+    }
+
+    // 绑定触摸事件
+    var startX, startY, endX, endY;
+    var gameContainer = document.getElementById("game-container");
+    gameContainer.addEventListener("touchstart", function (event) {
+        startX = event.touches[0].pageX;
+        startY = event.touches[0].pageY;
+    });
+
+    gameContainer.addEventListener("touchmove", function (event) {
+        event.preventDefault();
+    });
+
+    gameContainer.addEventListener("touchend", function (event) {
+        endX = event.changedTouches[0].pageX;
+        endY = event.changedTouches[0].pageY;
+        var deltaX = endX - startX;
+        var deltaY = endY - startY;
+        if (Math.abs(deltaX) < 0.1 * document.documentElement.clientWidth && Math.abs(deltaY) < 0.1 * document.documentElement.clientWidth) {
+            return;
+        }
+        if (Math.abs(deltaX) >= Math.abs(deltaY)) {
+            if (deltaX > 0) {
+// right
+                if (moveRight()) {
+                    history.push({
+                        board: JSON.parse(JSON.stringify(board)),
+                        score: score
+                    });
+                    checkUndo();
+                }
+            } else {
+// left
+                if (moveLeft()) {
+                    history.push({
+                        board: JSON.parse(JSON.stringify(board)),
+                        score: score
+                    });
+                    checkUndo();
+                }
+            }
+        } else {
+            if (deltaY > 0) {
+// down
+                if (moveDown()) {
+                    history.push({
+                        board: JSON.parse(JSON.stringify(board)),
+                        score: score
+                    });
+                    checkUndo();
+                }
+            } else {
+// up
+                if (moveUp()) {
+                    history.push({
+                        board: JSON.parse(JSON.stringify(board)),
+                        score: score
+                    });
+                    checkUndo();
+                }
+            }
+        }
+    });
+
+    // 初始化游戏
+    initGameState();
+
+    // 显示高分榜
+    function showHighScores() {
+        var highScores = getHighScores();
+        var highScoreList = document.getElementById("high-score-list");
+        highScoreList.innerHTML = "";
+        for (var i = 0; i < highScores.length; i++) {
+            var highScoreItem = document.createElement("li");
+            highScoreItem.innerText = (i + 1) + ". " + highScores[i];
+            highScoreList.appendChild(highScoreItem);
+        }
+    }
+
+    // 隐藏高分榜
+    function hideHighScores() {
+        var highScoreList = document.getElementById("high-score-list");
+        highScoreList.innerHTML = "";
+    }
+
+    // 显示帮助信息
+    function showHelp() {
+        var helpText = "使用方向键或手势进行移动\n\n" +
+            "合并相同数字的方块，得到更高的分数\n\n" +
+            "当所有方块都被填满，且无法移动时游戏结束\n\n" +
+            "按 ESC 重新开始游戏，按 U 撤销上一步操作\n\n" +
+            "自动保存游戏进度，每秒钟保存一次\n\n" +
+
+            "尝试创造最高分数，进入高分榜吧！";
+        alert(helpText);
+    }
+
+    // 显示关于信息
+    function showAbout() {
+        var aboutText = "2048 游戏\n\n" +
+            "作者：Gabriele Cirulli\n" +
+            "原版地址：https://play2048.co/\n\n" +
+            "改进版作者：你的名字\n" +
+            "改进版地址：你的地址\n\n" +
+            "欢迎提出宝贵意见和建议！";
+        alert(aboutText);
+    }
+
+    // 绑定按钮事件
+    var highScoresButton = document.getElementById("high-scores-button");
+    highScoresButton.addEventListener("click", showHighScores);
+
+    var hideScoresButton = document.getElementById("hide-scores-button");
+    hideScoresButton.addEventListener("click", hideHighScores);
+
+    var helpButton = document.getElementById("help-button");
+    helpButton.addEventListener("click", showHelp);
+
+    var aboutButton = document.getElementById("about-button");
+    aboutButton.addEventListener("click", showAbout);
+
+    // 自动保存游戏进度
+    setInterval(function () {
+        saveGameState();
+    }, 1000);
+
+    // 检查游戏是否结束
+    function checkGameOver() {
+        if (isGameOver()) {
+            var finalScore = document.getElementById("final-score");
+            finalScore.innerText = score;
+            var gameOverScreen = document.getElementById("game-over-screen");
+            gameOverScreen.style.display = "block";
+            saveHighScore(score);
+        }
+    }
+
+    // 隐藏游戏结束界面
+    function hideGameOverScreen() {
+        var gameOverScreen = document.getElementById("game-over-screen");
+        gameOverScreen.style.display = "none";
+    }
+
+    // 重新开始游戏
+    function restartGame() {
+        hideGameOverScreen();
+        resetGame();
+    }
+
+    // 绑定游戏结束界面按钮事件
+    var restartButton = document.getElementById("restart-button");
+    restartButton.addEventListener("click", restartGame);
+
+    var cancelButton = document.getElementById("cancel-button");
+    cancelButton.addEventListener("click", hideGameOverScreen);
+
+
+    // 检查是否可以撤销操作
+    function checkUndo() {
+        var undoButton = document.getElementById("undo-button");
+        if (history.length > 1) {
+            undoButton.disabled = false;
+        } else {
+            undoButton.disabled = true;
+        }
+    }
+
+    // 撤销上一步操作
+    function undo() {
+        if (history.length > 1) {
+            history.pop();
+            var lastState = history[history.length - 1];
+            board = lastState.board;
+            score = lastState.score;
+            updateBoardView();
+            updateScoreView();
+            checkUndo();
+        }
+    }
+
+    // 绑定撤销按钮事件
+    var undoButton = document.getElementById("undo-button");
+    undoButton.addEventListener("click", undo);
+
+
+    // 获取游戏存档
+    function getGameState() {
+        var state = localStorage.getItem("gameState");
+        if (state) {
+            return JSON.parse(state);
+        } else {
+            return null;
+        }
+    }
+
+    // 保存游戏存档
+    function saveGameState() {
+        var state = {
+            board: board,
+            score: score,
+            history: history
+        };
+        localStorage.setItem("gameState", JSON.stringify(state));
+    }
+
+    // 重置游戏
+    function resetGame() {
+        board = [];
+        score = 0;
+        history = [];
+        addNewTile();
+        addNewTile();
+        updateBoardView();
+        updateScoreView();
+        checkUndo();
+        hideGameOverScreen();
+    }
+
+    // 初始化游戏状态
+    function initGameState() {
+        var state = getGameState();
+        if (state) {
+            board = state.board;
+            score = state.score;
+            history = state.history;
+        } else {
+            resetGame();
+        }
+        updateBoardView();
+        updateScoreView();
+        checkUndo();
+    }
+
+    // 更新游戏界面
+    function updateBoardView() {
+        for (var i = 0; i < boardSize; i++) {
+            for (var j = 0; j < boardSize; j++) {
+                var tile = document.getElementById("tile-" + i + "-" + j);
+                tile.className = "tile tile-" + board[i][j];
+                tile.innerText = board[i][j] === 0 ? "" : board[i][j];
+            }
+        }
+    }
+
+    // 更新分数界面
+    function updateScoreView() {
+        var scoreView = document.getElementById("score");
+        scoreView.innerText = score;
+    }
+
+    // 添加新方块
+    function addNewTile() {
+        var emptyTiles = [];
+        for (var i = 0; i < boardSize; i++) {
+            for (var j = 0; j < boardSize; j++) {
+                if (board[i][j] === 0) {
+                    emptyTiles.push({x: i, y: j});
+                }
+            }
+        }
+        if (emptyTiles.length === 0) {
+            return false;
+        }
+        var randomTileIndex = Math.floor(Math.random() * emptyTiles.length);
+        var randomTileValue = Math.random() < 0.9 ? 2 : 4;
+        var randomTile = emptyTiles[randomTileIndex];
+        board[randomTile.x][randomTile.y] = randomTileValue;
+        return true;
+    }
+
+    // 获取最高分数
+    function getHighScores() {
+        var highScores = localStorage.getItem("highScores");
+        if (highScores) {
+            return JSON.parse(highScores);
+        } else {
+            return [];
+        }
+    }
+
+    // 保存最高分数
+    function saveHighScore(score) {
+        var highScores = getHighScores();
+        highScores.push(score);
+        highScores.sort(function (a, b) {
+            return b - a;
+        });
+        highScores = highScores.slice(0, 10);
+        localStorage.setItem("highScores", JSON.stringify(highScores));
+    }
+
+    // 判断游戏是否结束
+    function isGameOver() {
+        for (var i = 0; i < boardSize; i++) {
+            for (var j = 0; j < boardSize; j++) {
+                if (board[i][j] === 0) {
+                    return false;
+                }
+                if (i > 0 && board[i][j] === board[i - 1][j]) {
+                    return false;
+                }
+                if (j > 0 && board[i][j] === board[i][j - 1]) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+
+    // 向右移动
+    function moveRight() {
+        var moved = false;
+        for (var i = 0; i < boardSize; i++) {
+            for (var j = boardSize - 2; j >= 0; j--) {
+                if (board[i][j] !== 0) {
+                    var k = j + 1;
+                    while (k < boardSize && board[i][k] === 0) {
+                        k++;
+                    }
+                    if (k < boardSize && board[i][j] === board[i][k]) {
+                        board[i][k] *= 2;
+                        score += board[i][k];
+                        board[i][j] = 0;
+                        moved = true;
+                    } else {
+                        k--;
+                        board[i][k] = board[i][j];
+                        board[i][j] = 0;
+                        if (j !== k) {
+                            moved = true;
+                        }
+                    }
+                }
+            }
+        }
+        if (moved) {
+            addNewTile();
+            updateBoardView();
+            updateScoreView();
+            checkGameOver();
+        }
+        return moved;
+    }
+
+    // 向下移动
+    function moveDown() {
+        var moved = false;
+        for (var j = 0; j < boardSize; j++) {
+            for (var i = boardSize - 2; i >= 0; i--) {
+                if (board[i][j] !== 0) {
+                    var k = i + 1;
+                    while (k < boardSize && board[k][j] === 0) {
+                        k++;
+                    }
+                    if (k < boardSize && board[i][j] === board[k][j]) {
+                        board[k][j] *= 2;
+                        score += board[k][j];
+                        board[i][j] = 0;
+                        moved = true;
+                    } else {
+                        k--;
+                        board[k][j] = board[i][j];
+                        board[i][j] = 0;
+                        if (i !== k) {
+                            moved = true;
+                        }
+                    }
+                }
+            }
+        }
+        if (moved) {
+            addNewTile();
+            updateBoardView();
+            updateScoreView();
+            checkGameOver();
+        }
+        return moved;
+    }
+
+    // 向左移动
+    function moveLeft() {
+        var moved = false;
+        for (var i = 0; i < boardSize; i++) {
+            for (var j = 1; j < boardSize; j++) {
+                if (board[i][j] !== 0) {
+                    var k = j - 1;
+                    while (k >= 0 && board[i][k] === 0) {
+                        k--;
+                    }
+                    if (k >= 0 && board[i][j] === board[i][k]) {
+                        board[i][k] *= 2;
+                        score += board[i][k];
+                        board[i][j] = 0;
+                        moved = true;
+                    } else {
+                        k++;
+                        board[i][k] = board[i][j];
+                        board[i][j] = 0;
+                        if (j !== k) {
+                            moved = true;
+                        }
+                    }
+                }
+            }
+        }
+        if (moved) {
+            addNewTile();
+            updateBoardView();
+            updateScoreView();
+            checkGameOver();
+        }
+        return moved;
+    }
+
+    // 向上移动
+    function moveUp() {
+        var moved = false;
+        for (var j = 0; j < boardSize; j++) {
+            for (var i = 1; i < boardSize; i++) {
+                if (board[i][j] !== 0) {
+                    var k = i - 1;
+                    while (k >= 0 && board[k][j] === 0) {
+                        k--;
+                    }
+                    if (k >= 0 && board[i][j] === board[k][j]) {
+                        board[k][j] *= 2;
+                        score += board[k][j];
+                        board[i][j] = 0;
+                        moved = true;
+                    } else {
+                        k++;
+                        board[k][j] = board[i][j];
+                        board[i][j] = 0;
+                        if (i !== k) {
+                            moved = true;
+                        }
+                    }
+                }
+            }
+        }
+        if (moved) {
+            addNewTile();
+            updateBoardView();
+            updateScoreView();
+            checkGameOver();
+        }
+        return moved;
+    }
+
+
+    // 添加新方块
+    function addNewTile() {
+        var emptyTiles = [];
+        for (var i = 0; i < boardSize; i++) {
+            for (var j = 0; j < boardSize; j++) {
+                if (board[i][j] === 0) {
+                    emptyTiles.push({x: i, y: j});
+                }
+            }
+        }
+        var randomIndex = Math.floor(Math.random() * emptyTiles.length);
+        var newTileValue = Math.random() < 0.9 ? 2 : 4;
+        board[emptyTiles[randomIndex].x][emptyTiles[randomIndex].y] = newTileValue;
+    }
+
+    // 更新游戏分数
+    function updateScoreView() {
+        scoreView.innerHTML = score;
+    }
+
+    // 检查游戏是否结束
+    function checkGameOver() {
+        if (isGameOver()) {
+            alert("游戏结束！您的得分是：" + score);
+        }
+    }
+    (function() {
+        createBoard();
+        addNewTile();
+        addNewTile();
+        updateScoreView();
+
+        document.addEventListener('keydown', function(event) {
+            event.preventDefault();
+            if (event.keyCode === 37) {
+                moveLeft();
+            } else if (event.keyCode === 38) {
+                moveUp();
+            } else if (event.keyCode === 39) {
+                moveRight();
+            } else if (event.keyCode === 40) {
+                moveDown();
+            }
+        });
+
+        restartButton.addEventListener('click', function() {
+            restartGame();
+        });
+
+        function restartGame() {
+            board = [];
+            score = 0;
+            createBoard();
+            addNewTile();
+            addNewTile();
+            updateBoardView();
+            updateScoreView();
+            checkGameOver();
+        }
+    })();
+</script>
+</html>
